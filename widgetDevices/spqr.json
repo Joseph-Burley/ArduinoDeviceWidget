@@ -1,0 +1,23 @@
+{
+	"device":"spqr",
+	"outputs":[
+		{
+			"Name":"LED_1",
+			"MIN_VALUE":0,
+			"MAX_VALUE":50,
+			"Value":25
+		},
+		{
+			"Name":"LED_2",
+			"MIN_VALUE":0,
+			"MAX_VALUE":1,
+			"Value":0
+		},
+		{
+			"Name":"Servo Position",
+			"MIN_VALUE":0,
+			"MAX_VALUE":90,
+			"Value":85
+		}
+		]
+}

@@ -1,0 +1,15 @@
+{"Name":"GIGN",
+"outputs":[
+{
+	"Name":"LED_1",
+	"MIN_VALUE":0,
+	"MAX_VALUE":1,
+	"Value":0
+},
+{
+	"Name":"POS",
+	"MIN_VALUE":0,
+	"MAX_VALUE":180,
+	"Value":90
+}
+]}

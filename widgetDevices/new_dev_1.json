@@ -1,0 +1,15 @@
+{"device":"new_dev_1",
+"outputs":[
+			{
+				"Name":"Thing_1",
+				"MIN_VALUE":0,
+				"MAX_VALUE":50,
+				"Value":15
+			},
+			{
+			"Name":"Thing_2",
+			"MIN_VALUE":0,
+			"MAX_VALUE":50,
+			"Value":35
+			}
+]}

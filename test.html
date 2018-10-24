@@ -1,0 +1,205 @@
+ <!DOCTYPE html>
+<html>
+
+<head>
+<script>
+var autoRefresh = false;
+var dev_list = [];
+</script>
+</head>
+
+<body>
+<script>
+var interval;
+function toggleAutoRefresh() {
+	autoRefresh = !autoRefresh;
+	if(autoRefresh)
+		interval = setInterval(getDeviceStuff, 3000);
+	else
+		clearInterval(interval);
+		
+	document.getElementById("AutoRefreshIndicator").innerHTML = "Auto-Refresh is: " + autoRefresh;
+}
+
+//not ready yet
+function drawDevice(canvas, device)
+{
+	
+	var canvas = document.getElementById("myCanvas");
+	var ctx = canvas.getContext("2d");
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+	var master_x_offest = 0;
+	for (var num = 0; num < responseArray.length; num++) {
+		obj = JSON.parse(responseArray[num]);
+		console.log(obj);
+		for (var i = 0; i < obj.outputs.length; i++) {
+			/*
+			Make two rectangles for output display; left is solid, right has no in-fill
+			widths should be proportional to max-min and value
+			 */
+			var indicator_width = 100;
+			var indicator_height = 15;
+			var vert_spacing = 5;
+			var temp_obj = obj.outputs[i];
+			var prop = temp_obj.Value / (temp_obj.MAX_VALUE - temp_obj.MIN_VALUE);
+			console.log("prop = " + prop);
+			//left and right width are for the indicator
+			var left_width = indicator_width * prop;
+			var right_width = indicator_width - left_width;
+			if (prop <= 1.0)
+				ctx.fillStyle = "#0000FF";
+			else
+				ctx.fillStyle = "#FF0000";
+			ctx.strokeStyle = "#0000FF";
+			ctx.fillRect(master_x_offest, i * (indicator_height + vert_spacing), left_width, indicator_height); //solid rectangle
+			ctx.fillStyle = "#000000";
+			ctx.strokeRect(master_x_offest + left_width, i * (indicator_height + vert_spacing) + 1, right_width, indicator_height - 2); //blank rectangle is two pixels smaller
+			//text
+			ctx.textBaseline = "top";
+			ctx.font = "normal " + indicator_height + "px Arial";
+			ctx.fillText(temp_obj.Name + ":\t" + temp_obj.Value, master_x_offest + indicator_width + 10, i * (indicator_height + vert_spacing));
+		}
+		master_x_offest += 200;
+		document.getElementById("ajaxStatus").innerHTML += obj.outputs;
+	}
+}
+
+function getDeviceStuff()
+{	
+	//determine which device to request
+	var inputList = document.getElementsByTagName('input');
+	var checkedList = [];
+	for(var i=0; i < inputList.length; i++)
+	{
+		if(inputList[i].checked)
+		{
+			checkedList.push(inputList[i].value);
+		}
+	}
+	
+	//convert list to JSON string
+	var obj_string = JSON.stringify(checkedList);
+	var xhttp = new XMLHttpRequest(); //actual request
+	xhttp.onreadystatechange = function(){
+		if (this.readyState == 4 && this.status == 200)
+		{
+			document.getElementById("ajaxStatus").innerHTML = "ajax successful ";
+			
+			//build table to contain device canvases and input fields
+			console.log(this.responseText);
+			var responseArray = JSON.parse(this.responseText);
+			var outputTable = document.getElementById("deviceOutputs");
+			
+		}
+		else if(this.status == 404)
+		{
+			document.getElementById("ajaxStatus").innerHTML = "ajax 404";
+		}
+		else
+			document.getElementById("ajaxStatus").innerHTML = "ajax wat";
+	};
+	xhttp.open("GET", "/api/getDevice?device="+obj_string, true);
+	xhttp.send();
+}
+
+function refDevList()
+{
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function()
+	{
+		if(this.readyState == 4 & this.status == 200)
+		{
+			//parse data
+			dev_list = JSON.parse(this.responseText);
+			
+			//perform actions on drop-down list first
+			var select_list = document.getElementById("deviceNameInput");
+			//remove all elements from the drop down list
+			while(select_list.length > 0)
+			{
+				select_list.remove(0);
+			}
+			//now add options in
+			for(var i=0; i<dev_list.length; i++)
+			{
+				var option = document.createElement("option");
+				option.text = dev_list[i];
+				select_list.add(option);
+			}
+			
+			//perform actions on table
+			var table = document.getElementById("deviceCheckboxes");
+			//remove all elements in the table
+			while(table.hasChildNodes())
+			{
+				table.removeChild(table.firstChild);
+			}
+			var col = 5;
+			var row = Math.floor(col / dev_list.length);
+			for(var i=0; i<row; i++) // for each row
+			{
+				var table_row = document.createElement("tr"); //create a row
+				for(var j=0; j<col; j++) //and each column
+				{
+					if(i*col+j > dev_list.length)
+						break;
+					var table_data = document.createElement("td"); //data element in row
+					var checkElem = document.createElement("input"); //actual checkboxes
+					checkElem.type = "checkbox";
+					checkElem.name = "device"+(i*col+j); //linearizes 2d array
+					checkElem.value = dev_list[i*col+j];
+					checkElem.id = "device"+(i*col+j);
+					var label = document.createElement("label");
+					label.textContent = dev_list[i*col+j];
+					
+					table_data.appendChild(checkElem);
+					table_data.appendChild(label);
+					
+					table_row.appendChild(table_data);
+
+				}
+				table.appendChild(table_row);
+			}
+			document.getElementById("deviceData").innerHTML = "Device List: " + this.responseText;
+			document.getElementById("ajaxStatus").innerHTML = "ajax 200";
+		}
+		else if(this.status == 404)
+		{
+			document.getElementById("ajaxStatus").innerHTML = "ajax 404";
+		}
+		else
+			document.getElementById("ajaxStatus").innerHTML = "ajax wat";
+	};
+	xhttp.open("GET", "/api/devList", true);
+	xhttp.send();
+}
+
+</script>
+<h1>A Web Page</h1>
+<p id="AutoRefreshIndicator">Auto-Refresh is: </p>
+<button type="button" onclick="toggleAutoRefresh()">Toggle Auto-Refresh</button>
+<br>
+<select id="deviceNameInput" type="text" name="Device"></select>
+<button type="button" onClick="getDeviceStuff()">Refresh Current Device</button>
+<button type="button" onClick="refDevList()">Refresh Device List</button>
+<p></p>
+<table id="deviceCheckboxes" style="width:100%">
+<!--input checkboxes go here -->
+</table>
+<p id="deviceData"></p>
+<p id="ajaxStatus"></p>
+<br>
+<div>
+<table id="deviceOutputs"></table>
+<!-- Ignore this one canvas
+<canvas id="myCanvas" height="100" style="border:1px solid #000000;">no canvas :(</canvas>
+<script>
+var canvas = document.getElementById("myCanvas");
+canvas.width = (window.innerWidth - 100);
+</script>
+-->
+</div>
+
+</body>
+</html>
