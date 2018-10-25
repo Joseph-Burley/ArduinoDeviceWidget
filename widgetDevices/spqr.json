@@ -18,6 +18,12 @@
 			"MIN_VALUE":0,
 			"MAX_VALUE":90,
 			"Value":85
+		},
+		{
+			"Name":"Thing",
+			"MIN_VALUE":0,
+			"MAX_VALUE":255,
+			"Value":50
 		}
 		]
 }
