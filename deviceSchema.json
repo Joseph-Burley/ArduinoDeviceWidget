@@ -1,0 +1,81 @@
+{
+   "definitions": {},
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "$id": "http://example.com/root.json",
+   "type": "object",
+   "title": "The Root Schema",
+   "required": [
+     "device",
+     "outputs"
+   ],
+   "properties": {
+     "device": {
+       "$id": "#/properties/device",
+       "type": "string",
+       "title": "The Device Schema",
+       "default": "",
+       "examples": [
+         "spqr"
+       ],
+       "readOnly": true,
+       "pattern": "^(.*)$"
+     },
+     "outputs": {
+       "$id": "#/properties/outputs",
+       "type": "array",
+       "title": "The Outputs Schema",
+       "default": null,
+       "minItems": 0,
+       "items": {
+         "$id": "#/properties/outputs/items",
+         "type": "object",
+         "title": "The Items Schema",
+         "required": [
+           "Name",
+           "MIN_VALUE",
+           "MAX_VALUE",
+           "Value"
+         ],
+         "properties": {
+           "Name": {
+             "$id": "#/properties/outputs/items/properties/Name",
+             "type": "string",
+             "title": "The Name Schema",
+             "default": "",
+             "examples": [
+               "LED_1"
+             ],
+             "pattern": "^(.*)$"
+           },
+           "MIN_VALUE": {
+             "$id": "#/properties/outputs/items/properties/MIN_VALUE",
+             "type": "integer",
+             "title": "The Min_value Schema",
+             "default": 0,
+             "examples": [
+               0
+             ]
+           },
+           "MAX_VALUE": {
+             "$id": "#/properties/outputs/items/properties/MAX_VALUE",
+             "type": "integer",
+             "title": "The Max_value Schema",
+             "default": 0,
+             "examples": [
+               50
+             ]
+           },
+           "Value": {
+             "$id": "#/properties/outputs/items/properties/Value",
+             "type": "integer",
+             "title": "The Value Schema",
+             "default": 0,
+             "examples": [
+               25
+             ]
+           }
+         }
+       }
+     }
+   }
+ }
