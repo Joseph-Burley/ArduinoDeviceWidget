@@ -4,8 +4,11 @@
 <head>
 <script>
 var autoRefresh = false;
-var dev_list = [];
+var dev_list = []; //this is the list of devices. Not the device objects
+var dev_obj_list = []; //list of device objects
 </script>
+<script src="deviceInterface.js"></script>
+<script src="doesNotExist.js"></script>
 </head>
 
 <body>
@@ -17,14 +20,14 @@ function toggleAutoRefresh() {
 		interval = setInterval(getDeviceStuff, 3000);
 	else
 		clearInterval(interval);
-		
+
 	document.getElementById("AutoRefreshIndicator").innerHTML = "Auto-Refresh is: " + autoRefresh;
 }
 
 //not ready yet
 function drawDevice(canvas, device)
 {
-	
+
 	var canvas = document.getElementById("myCanvas");
 	var ctx = canvas.getContext("2d");
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -66,8 +69,8 @@ function drawDevice(canvas, device)
 }
 
 function getDeviceStuff()
-{	
-	//determine which device to request
+{
+	//determine which devices to request
 	var inputList = document.getElementsByTagName('input');
 	var checkedList = [];
 	for(var i=0; i < inputList.length; i++)
@@ -77,7 +80,7 @@ function getDeviceStuff()
 			checkedList.push(inputList[i].value);
 		}
 	}
-	
+
 	//convert list to JSON string
 	var obj_string = JSON.stringify(checkedList);
 	var xhttp = new XMLHttpRequest(); //actual request
@@ -85,12 +88,48 @@ function getDeviceStuff()
 		if (this.readyState == 4 && this.status == 200)
 		{
 			document.getElementById("ajaxStatus").innerHTML = "ajax successful ";
-			
+
 			//build table to contain device canvases and input fields
 			console.log(this.responseText);
 			var responseArray = JSON.parse(this.responseText);
+      for (var i=0; i<responseArray.length; i++)
+      {
+        responseArray[i] = JSON.parse(responseArray[i]);
+      }
+      //build device interfaces
+      dev_obj_list = [];
+      for (var i=0; i<responseArray.length; i++)
+      {
+        var device = new deviceInterface();
+        device.updateObj(responseArray[i]);
+        dev_obj_list.push(device);
+      }
 			var outputTable = document.getElementById("deviceOutputs");
-			
+      //remove children from table
+      while(outputTable.hasChildNodes())
+      {
+        outputTable.removeChild(outputTable.firstChild);
+      }
+      //place device interfaces into table
+      var col = 5;
+			var row = Math.floor(col / dev_obj_list.length);
+			for(var i=0; i<row; i++) // for each row
+			{
+				var table_row = document.createElement("tr"); //create a row
+				for(var j=0; j<col; j++) //and each column
+				{
+					if(i*col+j >= dev_obj_list.length)
+						break;
+					var table_data = document.createElement("td"); //data element in row
+					table_data.appendChild(dev_obj_list[i*col+j].divTag);
+					table_row.appendChild(table_data);
+          dev_obj_list[i*col+j].drawDevice()
+
+				}
+				outputTable.appendChild(table_row);
+			}
+
+
 		}
 		else if(this.status == 404)
 		{
@@ -103,6 +142,9 @@ function getDeviceStuff()
 	xhttp.send();
 }
 
+/*
+This function refreshes the list of available devices and adds them to a table
+*/
 function refDevList()
 {
 	var xhttp = new XMLHttpRequest();
@@ -112,7 +154,7 @@ function refDevList()
 		{
 			//parse data
 			dev_list = JSON.parse(this.responseText);
-			
+
 			//perform actions on drop-down list first
 			var select_list = document.getElementById("deviceNameInput");
 			//remove all elements from the drop down list
@@ -127,7 +169,7 @@ function refDevList()
 				option.text = dev_list[i];
 				select_list.add(option);
 			}
-			
+
 			//perform actions on table
 			var table = document.getElementById("deviceCheckboxes");
 			//remove all elements in the table
@@ -152,10 +194,10 @@ function refDevList()
 					checkElem.id = "device"+(i*col+j);
 					var label = document.createElement("label");
 					label.textContent = dev_list[i*col+j];
-					
+
 					table_data.appendChild(checkElem);
 					table_data.appendChild(label);
-					
+
 					table_row.appendChild(table_data);
 
 				}

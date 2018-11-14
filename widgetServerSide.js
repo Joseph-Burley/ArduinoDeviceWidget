@@ -17,14 +17,17 @@ http.createServer(function(req, res){
 	}
 	else if(path == '/api/getDevice')
 	{
-		//?device should be an array of device json files
+		/*
+		?device should be an array of device json files
+		response is an array of objects as a json string
+		*/
 		var devString = q.query.device;
 		console.log('devString is:\n' + devString);
 		console.log('devString is a: ' + (typeof devString));
 		var devArray = JSON.parse(devString);
 		console.log('devArray is:\n' + devArray);
 		console.log('devArray is a: ' + (typeof devArray));
-		
+
 		res.writeHead(200, {'content-type':'text/html'});
 		responseArray = [];
 		for(var i=0; i<devArray.length; i++)
@@ -34,13 +37,12 @@ http.createServer(function(req, res){
 			var filePath = './widgetDevices/' + fileName;
 			console.log("the path is: " + filePath);
 			if(fs.existsSync(filePath))
-				{
-			
-					var data = fs.readFileSync(filePath);
-					data = JSON.parse(data);
-					data = JSON.stringify(data);
-					responseArray.push(data);
-				}			
+			{
+				var data = fs.readFileSync(filePath);
+				data = JSON.parse(data);
+				data = JSON.stringify(data);
+				responseArray.push(data);
+			}
 		}
 		console.log(responseArray);
 		res.write(JSON.stringify(responseArray));
@@ -56,27 +58,40 @@ http.createServer(function(req, res){
 	}
 	else
 	{
-		res.writeHead(404, {'content-type':'text/html'});
-		res.write('<p>sorry</p>');
-		res.end();
+		console.log("*****Inside Fail Condition*****");
+		//check to see if file exists and return it
+		console.log("the path is: " + path);
+		if (fs.existsSync("."+path))
+		{
+			res.writeHead(200, {'content-type':'text/html'});
+			var data = fs.readFileSync("."+path);
+			res.write(data);
+			res.end();
+		}
+		else
+		{
+			res.writeHead(404, {'content-type':'text/html'});
+			res.write('<p>sorry</p>');
+			res.end();
+		}
 	}
 }).listen(8080);
 
 http.createServer(function(req, res){
 	var q = url.parse(req.url, true);
 	var path = q.pathname;
-	
+
 	if(path == "/api/update")
 	{
-		
+
 	}
 	else if(path == "/api/newDevice")
 	{
-		
+
 	}
 	else if(path == "/api/getCommand")
 	{
-		
+
 	}
 	var s = q.query.j; //j is the querry key that holds the json string
 	console.log("The request is: \n" + q);
@@ -90,7 +105,7 @@ http.createServer(function(req, res){
 		res.write("<p>no valid JSON string<p>");
 		res.end();
 	}
-	
+
 	try{
 		var filePath = './widgetDevices/' + obj.device + '.json';
 		console.log("the path is: " + filePath);
@@ -99,8 +114,8 @@ http.createServer(function(req, res){
 		res.writeHead(404, {'Content-Type':'text/html'});
 		res.end();
 	}
-	
+
 	res.writeHead(200, {'Content-Type':'text/html'});
 	res.end();
-	
+
 }).listen(8181);

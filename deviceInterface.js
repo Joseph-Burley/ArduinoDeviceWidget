@@ -5,8 +5,8 @@
     <input> tags relating to sending commands to the device
   and methods for updating the canvas and validating device JSON files
 */
-
-function deviceInterface(obj) //this begins the deviceInterface constructor
+testVariable = 123456;
+function deviceInterface() //this begins the deviceInterface constructor
 {
   this.deviceObj; //the object representing the device
   this.divTag; //the enclosing <div> tag
@@ -16,15 +16,15 @@ function deviceInterface(obj) //this begins the deviceInterface constructor
   this.ctx; //the context of canvasTag
 
   //make tags
-  divTag = document.createElement("div");
-  canvasTag = document.createElement("canvas");
-  canvasTag.width = c_width;
-  canvasTag.height = c_height;
-  canvasTag.innerHTML = "No Canvas :(";
-  this.ctx = canvasTag.getContext("2d");
+  this.divTag = document.createElement("div");
+  this.canvasTag = document.createElement("canvas");
+  this.canvasTag.width = this.c_width;
+  this.canvasTag.height = this.c_height;
+  this.canvasTag.innerHTML = "No Canvas :(";
+  this.ctx = this.canvasTag.getContext("2d");
 
   //place canvasTag into divTag
-  divTag.appendChild(canvasTag);
+  this.divTag.appendChild(this.canvasTag);
 
   this.updateObj = function (obj)
   {
@@ -51,7 +51,7 @@ function deviceInterface(obj) //this begins the deviceInterface constructor
   this.drawDevice = function ()
   {
     //this was copy-pasted from original html page.
-    for (var i = 0; i < obj.outputs.length; i++) {
+    for (var i = 0; i < this.deviceObj.outputs.length; i++) {
    	/*
    	Make two rectangles for output display; left is solid, right has no in-fill
    	widths should be proportional to max-min and value
@@ -59,7 +59,7 @@ function deviceInterface(obj) //this begins the deviceInterface constructor
    	var indicator_width = 100;
    	var indicator_height = 15;
    	var vert_spacing = 5;
-   	var temp_obj = obj.outputs[i];
+   	var temp_obj = this.deviceObj.outputs[i];
    	var prop = temp_obj.Value / (temp_obj.MAX_VALUE - temp_obj.MIN_VALUE);
    	console.log("prop = " + prop);
    	//left and right width are for the indicator
@@ -70,13 +70,14 @@ function deviceInterface(obj) //this begins the deviceInterface constructor
    	else
    		this.ctx.fillStyle = "#FF0000";
    	this.ctx.strokeStyle = "#0000FF";
-   	this.ctx.fillRect(master_x_offest, i * (indicator_height + vert_spacing), left_width, indicator_height); //solid rectangle
+   	this.ctx.fillRect(0, i * (indicator_height + vert_spacing), left_width, indicator_height); //solid rectangle
    	this.ctx.fillStyle = "#000000";
-   	this.ctx.strokeRect(master_x_offest + left_width, i * (indicator_height + vert_spacing) + 1, right_width, indicator_height - 2); //blank rectangle is two pixels smaller
+   	this.ctx.strokeRect(left_width, i * (indicator_height + vert_spacing) + 1, right_width, indicator_height - 2); //blank rectangle is two pixels smaller
    	//text
    	this.ctx.textBaseline = "top";
    	this.ctx.font = "normal " + indicator_height + "px Arial";
-   	this.ctx.fillText(temp_obj.Name + ":\t" + temp_obj.Value, master_x_offest + indicator_width + 10, i * (indicator_height + vert_spacing));
+   	this.ctx.fillText(temp_obj.Name + ":\t" + temp_obj.Value, indicator_width + 10, i * (indicator_height + vert_spacing));
    	}
   }
+
 }
