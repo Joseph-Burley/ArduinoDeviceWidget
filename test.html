@@ -184,21 +184,22 @@ function refDevList()
 				var table_row = document.createElement("tr"); //create a row
 				for(var j=0; j<col; j++) //and each column
 				{
-					if(i*col+j > dev_list.length)
-						break;
-					var table_data = document.createElement("td"); //data element in row
-					var checkElem = document.createElement("input"); //actual checkboxes
-					checkElem.type = "checkbox";
-					checkElem.name = "device"+(i*col+j); //linearizes 2d array
-					checkElem.value = dev_list[i*col+j];
-					checkElem.id = "device"+(i*col+j);
-					var label = document.createElement("label");
-					label.textContent = dev_list[i*col+j];
+					if(i*col+j < dev_list.length)
+          {
+					  var table_data = document.createElement("td"); //data element in row
+					  var checkElem = document.createElement("input"); //actual checkboxes
+					  checkElem.type = "checkbox";
+					  checkElem.name = "device"+(i*col+j); //linearizes 2d array
+					  checkElem.value = dev_list[i*col+j];
+					  checkElem.id = "device"+(i*col+j);
+					  var label = document.createElement("label");
+					  label.textContent = dev_list[i*col+j];
 
-					table_data.appendChild(checkElem);
-					table_data.appendChild(label);
+				   table_data.appendChild(checkElem);
+		       table_data.appendChild(label);
 
-					table_row.appendChild(table_data);
+			     table_row.appendChild(table_data);
+          }
 
 				}
 				table.appendChild(table_row);

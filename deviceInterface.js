@@ -10,21 +10,35 @@ function deviceInterface() //this begins the deviceInterface constructor
 {
   this.deviceObj; //the object representing the device
   this.divTag; //the enclosing <div> tag
+  this.labelTag; //a label for the device name
   this.canvasTag; //the <canvas> used for drawing
-  this.c_width = 500;
-  this.c_height = 100;
   this.ctx; //the context of canvasTag
 
   //make tags
   this.divTag = document.createElement("div");
+  this.labelTag = document.createElement("label");
+  this.labelTag.textContent = ""; //empty for now
   this.canvasTag = document.createElement("canvas");
-  this.canvasTag.width = this.c_width;
-  this.canvasTag.height = this.c_height;
+  this.canvasTag.width = 300;
+  this.canvasTag.height = 100;
   this.canvasTag.innerHTML = "No Canvas :(";
   this.ctx = this.canvasTag.getContext("2d");
+  this.canvasTag.style.padding = "5px 5px 5px 5px"
 
   //place canvasTag into divTag
+  this.divTag.appendChild(this.labelTag);
+  this.divTag.appendChild(document.createElement("br")); //linebreak
   this.divTag.appendChild(this.canvasTag);
+
+  this.setWidth = function(w)
+  {
+    this.canvasTag.width = w;
+  }
+
+  this.getWidth = function()
+  {
+    return this.canvasTag.width;
+  }
 
   this.updateObj = function (obj)
   {
@@ -50,6 +64,7 @@ function deviceInterface() //this begins the deviceInterface constructor
 
   this.drawDevice = function ()
   {
+    this.labelTag.textContent = this.deviceObj.device;
     //this was copy-pasted from original html page.
     for (var i = 0; i < this.deviceObj.outputs.length; i++) {
    	/*
