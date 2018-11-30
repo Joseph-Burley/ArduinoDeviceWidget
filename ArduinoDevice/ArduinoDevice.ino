@@ -81,77 +81,77 @@ void TaskSerial( void* pvParameters)
 void TaskHardware(void* pvParameters)
 {
   /*
-   * This task reads pins and sets outputs.
-   * It also reads from the Hardware queue to apply software inputs
-   * or respond to requests for data.
-   */
+     This task reads pins and sets outputs.
+     It also reads from the Hardware queue to apply software inputs
+     or respond to requests for data.
+  */
 
-   //I don't think the queue handles need to be passed into the parameters
+  //I don't think the queue handles need to be passed into the parameters
 
-   //define output pin numbers
-   const int num_out = 3;
-   const int out[] = {7,6,5};
+  //define output pin numbers
+  const int num_out = 3;
+  const int out[] = {7, 6, 5};
 
-   //a char buffer to store data
-   char* messBuff [32];
+  //a char buffer to store data
+  char* messBuff [32];
 
-   //set pin to output mode and set low
-   Pinmode(7, OUTPUT);
-   Pinmode(6, OUTPUT);
-   Pinmode(5, OUTPUT);
+  //set pin to output mode and set low
+  pinMode(7, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(5, OUTPUT);
 
-   for(;;)
-   {
-     //for now only reads from queue
-     //by default 1 tick is 15ms
-     if(xQueueReceive(xHardwareQueue, messBuff, 1) != pdPASS)
-     {
-       //normally here is where I would check for button inputs
-     }
-     else
-     {
-       /*
-        * Check bit 5 of first byte.
-        * If 1, is applying input
-        * If 0, is reading current output
+  for (;;)
+  {
+    //for now only reads from queue
+    //by default 1 tick is 15ms
+    if (xQueueReceive(xHardwareQueue, messBuff, 1) != pdPASS)
+    {
+      //normally here is where I would check for button inputs
+    }
+    else
+    {
+      /*
+         Check bit 5 of first byte.
+         If 1, is applying input
+         If 0, is reading current output
+      */
+
+      bool success = false;
+
+      //the number of the input or output being referenced
+      byte num = *messBuff[0] & 0x1F;
+
+      if (*messBuff[0] & (1 << 5))
+      {
+        /* Input
+           mask 5 LSB to determine input number to change
+           if greater than total number of inputs reject it
         */
-
-        bool success = false;
-
-        //the number of the input or output being referenced
-        int num = messBuff[0] & B00011111;
-
-        if(messBuff[0] & (1 << 5))
+        //build the value being input
+        unsigned long val = 0;
+        for (byte i = *messBuff[1]; i > 0; i--)
         {
-          /* Input
-           * mask 5 LSB to determine input number to change
-           * if greater than total number of inputs reject it
-           */
-           //build the value being input
-           uint_32 val = 0;
-           for(int i=messBuff[1]; i>0; i--)
-           {
-             val += messBuff[i+2] << (i*8);
-           }
-           bool val_bool = (bool) val;
-           if(in < num_out)
-           {
-              digitalWrite(out[in], val_bool);
-              success = true;
-           }
-           else
-           {
-              Serial.println("Input requested out of bounds");
-           }
+          val += *messBuff[i + 2] << (i * 8);
+        }
+        bool val_bool = (bool) val;
+        if (num < num_out)
+        {
+          digitalWrite(out[num], val_bool);
+          success = true;
         }
         else
         {
-          /*
-           * Output
-           * A read request will never be more than 1 byte long
-           */
+          Serial.println(F("Input requested out of bounds"));
         }
+      }
+      else
+      {
+        /*
+           Output
+           A read request will never be more than 1 byte long
+        */
+      }
 
-     }
-   }
+    }
+  }
 }
