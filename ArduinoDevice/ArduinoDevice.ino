@@ -30,7 +30,7 @@ typedef struct
 
 void setup() {
   Serial.begin(9600);
-  Serial.setTimeout(45); //timeout is 45 ms (3 ticks)
+  Serial.setTimeout(1000); //timeout is 45 ms (3 ticks)
 
   //first queues are made
   xSerialQueue = xQueueCreate(queueLength, sizeof(message));
@@ -86,28 +86,55 @@ void TaskSerial( void* pvParameters)
   SerialMessage.opcode = 0;
   SerialMessage.data = 0;
 
-  String tempMess;
+  char buff [] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+  String tempMess = "";
   tempMess.reserve(20);
+  Serial.print("Address: ");
+  Serial.print((long) &tempMess, HEX);
+  Serial.print('\n');
 
   for (;;)
   {
 
     if (Serial.available() > 0)
     {
-      while(Serial.available())
+      Serial.print("\n\n");
+      Serial.println(Serial.available());
+      Serial.println(tempMess.length());
+      int err_no = 0;
+      //Serial.readBytesUntil('\n', buff, 20);
+      tempMess += Serial.readStringUntil('\n');
+      Serial.println(Serial.available());
+
+      Serial.print("Address: ");
+      Serial.print((long) &tempMess, HEX);
+      Serial.print('\n');
+
+      //tempMess = String(buff);
+      Serial.println(tempMess.length());
+      Serial.print("input: <");
+      for(int i=0; i<20; i++)
       {
-        tempMess += Serial.read();
+        Serial.print(buff[i], HEX);
+        Serial.print('\n');
       }
+      Serial.println(">");
+      buff[19] = '\0';
+      Serial.print("input: (");
+      Serial.print(tempMess);
+      Serial.println(")");
       tempMess.trim();
+
       int firstSpace = tempMess.indexOf(' '); //if this is -1 the string has only one argument and is invalid
-      if (firstSpace == -1)
-      {
-        Serial.println(F("Invalid Command: Too few arguments"));
-        break;
-      }
       int lastSpace = tempMess.indexOf(' ', firstSpace); //if this is -1 the string has only two arguments and must be a read op
       String paramNumArg = tempMess.substring(firstSpace, lastSpace); //0-127 this is the number of the input or output
       String paramDatArg = tempMess.substring(lastSpace); //if output, then is unused. if input, is the value to write
+      if (firstSpace == -1)
+      {
+        err_no |= 1;
+      }
+
 
       int paramNum = paramNumArg.toInt();
       int paramDat = paramDatArg.toInt();
@@ -122,8 +149,7 @@ void TaskSerial( void* pvParameters)
       }
       else
       {
-        Serial.println(F("Invalid Command: Must be R/W"));
-        break;
+        err_no |= (1 << 1);
       }
 
       SerialMessage.opcode |= paramNum;
@@ -134,16 +160,25 @@ void TaskSerial( void* pvParameters)
         There is no other input validation at this time.
         Simply enqueue the message and clear the buffer
       */
-      Serial.print(uxQueueSpacesAvailable(xHardwareQueue), DEC);
-      bool succ = xQueueSend(xHardwareQueue, &SerialMessage, 0);
-      if (!succ)
+      if (err_no == 0)
       {
-        Serial.println("queue full");
+        Serial.print(uxQueueSpacesAvailable(xHardwareQueue), DEC);
+        bool succ = xQueueSend(xHardwareQueue, &SerialMessage, 0);
+        if (!succ)
+        {
+          Serial.println("queue full");
+        }
+      }
+      else
+      {
+        Serial.print("err_no: ");
+        Serial.print(err_no, HEX);
+        Serial.print('\n');
       }
     }
 
 
-    if (xQueueReceive(xSerialQueue,&SerialMessage, 1) == pdPASS)
+    if (xQueueReceive(xSerialQueue, &SerialMessage, 1) == pdPASS)
     {
       Serial.println("Received message");
       Serial.println(SerialMessage.source);
@@ -221,13 +256,13 @@ void TaskHardware(void* pvParameters)
       unsigned int rw = HardwareMessage.opcode & (1 << 7); //MSB of opcode is for r/w select
       unsigned int num = HardwareMessage.opcode & !(1 << 7); //grab the 7 LSB of opcode
 
-      if(rw == 1)
+      if (rw == 1)
       {
         //read output
         HardwareMessage.data = out_val_curr[num];
         xQueueSend(xSerialQueue, &HardwareMessage, 0);
       }
-      else if(rw == 0)
+      else if (rw == 0)
       {
         //write input
         out_val_next[num] = HardwareMessage.data;
