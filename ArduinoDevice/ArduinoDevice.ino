@@ -29,28 +29,33 @@ typedef struct
 } message;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(19200);
   Serial.setTimeout(1000); //timeout is 45 ms (3 ticks)
 
   //first queues are made
   xSerialQueue = xQueueCreate(queueLength, sizeof(message));
+  Serial.print((int) xSerialQueue, HEX);
+  Serial.write('\n');
   //xEthernetQueue = xQueueCreate(queueLength, queueWidth);
   xHardwareQueue = xQueueCreate(queueLength, sizeof(message));
-
+  Serial.print((int) xHardwareQueue, HEX);
+  Serial.write('\n');
+  
+  Serial.println("Setup");
 
 
 
 
   xTaskCreate(TaskSerial,
               (const portCHAR*) "Serial",
-              128,
+              200,
               NULL,
               2,
               &serialHandle);
 
   xTaskCreate(TaskHardware,
               (const portCHAR*) "Hardware",
-              128,
+              200,
               NULL,
               1,
               &hardwareHandle);
@@ -66,10 +71,8 @@ void loop() {
 
 void TaskSerial( void* pvParameters)
 {
-  Serial.print((int) xSerialQueue, HEX);
-  Serial.write('\n');
-  Serial.print((int) xHardwareQueue, HEX);
-  Serial.write('\n');
+  
+  
   Serial.print((int) serialHandle, HEX);
   Serial.write('\n');
   Serial.print((int) hardwareHandle, HEX);
@@ -88,69 +91,145 @@ void TaskSerial( void* pvParameters)
 
   char buff [] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-  String tempMess = "";
-  tempMess.reserve(20);
-  Serial.print("Address: ");
-  Serial.print((long) &tempMess, HEX);
-  Serial.print('\n');
-
   for (;;)
   {
-
-    if (Serial.available() > 0)
+    if(buff[0] != '\0')
     {
-      Serial.print("\n\n");
-      Serial.println(Serial.available());
-      Serial.println(tempMess.length());
-      int err_no = 0;
-      //Serial.readBytesUntil('\n', buff, 20);
-      tempMess += Serial.readStringUntil('\n');
-      Serial.println(Serial.available());
-
-      Serial.print("Address: ");
-      Serial.print((long) &tempMess, HEX);
-      Serial.print('\n');
-
-      //tempMess = String(buff);
-      Serial.println(tempMess.length());
-      Serial.print("input: <");
       for(int i=0; i<20; i++)
       {
-        Serial.print(buff[i], HEX);
-        Serial.print('\n');
+        buff[i] = '\0';
       }
-      Serial.println(">");
-      buff[19] = '\0';
-      Serial.print("input: (");
-      Serial.print(tempMess);
-      Serial.println(")");
-      tempMess.trim();
+    }
+    if (Serial.available() > 0)
+    {
+      Serial.readBytesUntil('\n', buff, 20);
+      /*
+         This splits the buffer into tokens.
+         There should be no more than three tokens.
+         The first token should be a single character
+         (i.e. token_index[0][1] should be token_index[0][0] + 1)
+         The second and third tokens should be 1-3 numeric characters
+      */
+      int err_no = 0;
 
-      int firstSpace = tempMess.indexOf(' '); //if this is -1 the string has only one argument and is invalid
-      int lastSpace = tempMess.indexOf(' ', firstSpace); //if this is -1 the string has only two arguments and must be a read op
-      String paramNumArg = tempMess.substring(firstSpace, lastSpace); //0-127 this is the number of the input or output
-      String paramDatArg = tempMess.substring(lastSpace); //if output, then is unused. if input, is the value to write
-      if (firstSpace == -1)
+      int token_index[20][2];
+      for (int i = 0; i < 20; i++)
       {
-        err_no |= 1;
+        for (int j = 0; j < 2; j++)
+        {
+          token_index[i][j] = -1;
+        }
       }
 
+      bool in_token = false;
+      int current_token = 0;
+      for (int i = 0; i < 20; i++)
+      {
+        char c = buff[i];
+        if (c <= 32 && in_token)
+        {
+          token_index[current_token][1] = i;
+          current_token++;
+          in_token = false;
+        }
+        else if (c > 32 && !in_token)
+        {
+          token_index[current_token][0] = i;
+          in_token = true;
+        }
+      }
 
-      int paramNum = paramNumArg.toInt();
-      int paramDat = paramDatArg.toInt();
+      int token_count = 0;
+      for (int i = 0; i < 20; i++)
+      {
+        if (token_index[i][0] >= 0)
+          token_count++;
+      }
 
-      if (tempMess.charAt(0) == 'R') //user is reading from output
+      //check number of tokens
+      if (token_count < 2)
       {
-        SerialMessage.opcode |= (1 << 7); //set bit 7
+        err_no |= (1 << 0); //bit 0 indicates too few arguments
       }
-      else if (tempMess.charAt(0) == 'W') //user is writing to input
+      else if (token_count > 3)
       {
-        SerialMessage.opcode &= !(1 << 7); //reset bit 7
+        err_no |= (1 << 1); //bit 1 indicates too many arguments
       }
-      else
+
+      /*
+         Check first token.
+         Must be a single character. Either 'R' or 'W'
+      */
+
+      if (token_count >= 1)
       {
-        err_no |= (1 << 1);
+        if (token_index[0][0] == (token_index[0][1] - 1))
+        {
+          //correct number
+          if (buff[token_index[0][0]] == 'R') //indicates Reading
+            SerialMessage.opcode |= (1 << 7);
+          else if (buff[token_index[0][0]] == 'W') //indicates Writing
+            SerialMessage.opcode &= ~(1 << 7);
+          else
+            err_no |= (1 << 2);
+        }
+        else
+        {
+          err_no |= (1 << 2); //bit 2 indicates first token is invalid
+        }
       }
+
+      //check if all characters in token 2 are numeric
+      //then convert to an integer
+      int paramNum = 0;
+      bool all_numeric = true;
+      if (token_count >= 2)
+      {
+        for (int i = token_index[1][0]; i < token_index[1][1]; i++)
+        {
+          if (buff[i] < 48 || buff[i] > 57)
+          {
+            all_numeric = false;
+            err_no |= (1 << 3); //bit 3 indicates second token is invalid
+          }
+        }
+
+        if (all_numeric)
+        {
+          int exponent = 0;
+          for (int i = token_index[1][1] - 1; i >= token_index[1][0]; i--)
+          {
+            paramNum += (buff[i] - 48) * pow(10, exponent);
+            exponent++;
+          }
+        }
+      }
+
+      //check token 3 the same way as token 2
+      int paramDat = 0;
+      all_numeric = true;
+      if (token_count >= 3)
+      {
+        for (int i = token_index[2][0]; i < token_index[2][1]; i++)
+        {
+          if (buff[i] < 48 || buff[i] > 57)
+          {
+            all_numeric = false;
+            err_no |= (1 << 4); //bit 4 indicates third token is invalid
+          }
+        }
+
+        if (all_numeric)
+        {
+          int exponent = 0;
+          for (int i = token_index[2][1] - 1; i >= token_index[2][0]; i--)
+          {
+            paramDat += (buff[i] - 48) * pow(10, exponent);
+            exponent++;
+          }
+        }
+      }
+
 
       SerialMessage.opcode |= paramNum;
       SerialMessage.data = paramDat;
@@ -168,6 +247,9 @@ void TaskSerial( void* pvParameters)
         {
           Serial.println("queue full");
         }
+
+        SerialMessage.opcode = 0;
+        SerialMessage.data = 0;
       }
       else
       {
@@ -182,7 +264,8 @@ void TaskSerial( void* pvParameters)
     {
       Serial.println("Received message");
       Serial.println(SerialMessage.source);
-      Serial.println(SerialMessage.opcode);
+      Serial.print(SerialMessage.opcode, BIN);
+      Serial.print('\n');
       Serial.println(SerialMessage.data);
     }
 
@@ -190,7 +273,7 @@ void TaskSerial( void* pvParameters)
     if (temp > max_stack)
     {
       max_stack = temp;
-      Serial.write(max_stack);
+      Serial.println("Highwater"+max_stack);
     }
 
   }
@@ -250,19 +333,30 @@ void TaskHardware(void* pvParameters)
          If 1, is applying input
          If 0, is reading current output
       */
-      Serial.print("message received");
+      Serial.println("\n\nmessage received");
+      Serial.print(HardwareMessage.opcode, BIN);
+      Serial.println();
+      Serial.print(HardwareMessage.data, BIN);
 
       //the number of the input or output being referenced
       unsigned int rw = HardwareMessage.opcode & (1 << 7); //MSB of opcode is for r/w select
-      unsigned int num = HardwareMessage.opcode & !(1 << 7); //grab the 7 LSB of opcode
+      unsigned int num = HardwareMessage.opcode & ~(1 << 7); //grab the 7 LSB of opcode
 
-      if (rw == 1)
+      Serial.println("\n\nInternals");
+      Serial.print("rw: ");
+      Serial.print(rw, BIN);
+      Serial.println();
+      Serial.print("num: ");
+      Serial.print(num, BIN);
+      Serial.println();
+
+      if (rw)
       {
         //read output
         HardwareMessage.data = out_val_curr[num];
         xQueueSend(xSerialQueue, &HardwareMessage, 0);
       }
-      else if (rw == 0)
+      else if (!rw)
       {
         //write input
         out_val_next[num] = HardwareMessage.data;
@@ -272,6 +366,9 @@ void TaskHardware(void* pvParameters)
         Serial.println("wat");
       }
 
+      HardwareMessage.source = 0;
+      HardwareMessage.opcode = 0;
+      HardwareMessage.data = 0;
 
     }
 
