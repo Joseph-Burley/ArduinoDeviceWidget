@@ -1,17 +1,20 @@
+#include <SPI.h>
+#include <Ethernet.h>
 #include <Arduino_FreeRTOS.h>
 #include <queue.h>
 
 //Declare Three tasks. one for Serial coms, one for Ethernet coms, one for hardware buttons
 void TaskSerial(void* pvParameters);
-//void TaskEthernet(void* pvParameters);
+void TaskEthernet(void* pvParameters);
 void TaskHardware(void* pvParameters);
 
 TaskHandle_t serialHandle; //Used to verify serial task has been created
+TaskHandle_t ethernetHandle;
 TaskHandle_t hardwareHandle;
 
 //Three queues. One to Hardware, one to Serial, one to Ethernet
 QueueHandle_t xSerialQueue; //For transmiting data to the Serial task
-//QueueHandle_t xEthernetQueue; //For transmitting data to the Ethernet task
+QueueHandle_t xEthernetQueue; //For transmitting data to the Ethernet task
 QueueHandle_t xHardwareQueue; //For transmitting data to the hardware task
 
 /*
@@ -28,20 +31,54 @@ typedef struct
   int data;
 } message;
 
+/*
+ * Ethernet stuff
+ */
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+IPAddress local(192,168,1,77);
+IPAddress server(192,168,1,10);
+EthernetClient client; 
+
 void setup() {
   Serial.begin(19200);
-  Serial.setTimeout(1000); //timeout is 45 ms (3 ticks)
+  Serial.setTimeout(45); //timeout is 45 ms (3 ticks)
+
+  Ethernet.init(10); //used for spi interface
+  Ethernet.begin(mac, local);
+
+  if(Ethernet.hardwareStatus() == EthernetNoHardware)
+  {
+    Serial.println(F("No Eth Shield"));
+  }
+  else
+  {
+    if(client.connect(server, 9999))
+    {
+      Serial.println(F("Eth Connected"));
+    }
+    else
+    {
+      Serial.println(F("Eth Failed"));
+    }
+  }
 
   //first queues are made
   xSerialQueue = xQueueCreate(queueLength, sizeof(message));
-  Serial.print((int) xSerialQueue, HEX);
-  Serial.write('\n');
-  //xEthernetQueue = xQueueCreate(queueLength, queueWidth);
+  xEthernetQueue = xQueueCreate(queueLength, sizeof(message));
   xHardwareQueue = xQueueCreate(queueLength, sizeof(message));
-  Serial.print((int) xHardwareQueue, HEX);
-  Serial.write('\n');
-  
   Serial.println("Setup");
+  if(xSerialQueue == NULL)
+  {
+    Serial.println(F("Serial Queue Fail"));
+  }
+  if(xEthernetQueue == NULL)
+  {
+    Serial.println(F("Ethernet Queue Fail"));
+  }
+  if(xHardwareQueue == NULL)
+  {
+    Serial.println(F("Hardware Queue Fail"));
+  }
 
 
 
@@ -52,6 +89,13 @@ void setup() {
               NULL,
               2,
               &serialHandle);
+
+  xTaskCreate(TaskEthernet,
+              (const portCHAR*) "Ethernet",
+              200,
+              NULL,
+              2,
+              &ethernetHandle);
 
   xTaskCreate(TaskHardware,
               (const portCHAR*) "Hardware",
@@ -68,16 +112,28 @@ void loop() {
 
 }
 
+void TaskEthernet(void* pvParameters)
+{
+
+  /*
+   * This task listens on the Ethernet port
+   */
+  message EthMessage;
+  EthMessage.source = 1;
+  EthMessage.opcode = 0;
+  EthMessage.data = 0;
+
+  char buff [] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+  for(;;)
+  {
+    
+  }
+}
+
 
 void TaskSerial( void* pvParameters)
 {
-  
-  
-  Serial.print((int) serialHandle, HEX);
-  Serial.write('\n');
-  Serial.print((int) hardwareHandle, HEX);
-  Serial.write('\n');
-
   int max_stack = 0;
 
   /*
