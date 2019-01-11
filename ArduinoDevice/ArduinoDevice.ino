@@ -1,4 +1,4 @@
-#include <SPI.h>
+//#include <SPI.h>
 #include <Ethernet.h>
 #include <Arduino_FreeRTOS.h>
 #include <queue.h>
@@ -8,14 +8,14 @@ void TaskSerial(void* pvParameters);
 void TaskEthernet(void* pvParameters);
 void TaskHardware(void* pvParameters);
 
-TaskHandle_t serialHandle; //Used to verify serial task has been created
-TaskHandle_t ethernetHandle;
-TaskHandle_t hardwareHandle;
+TaskHandle_t serialHandle = 0; //Used to verify serial task has been created
+TaskHandle_t ethernetHandle = 0;
+TaskHandle_t hardwareHandle = 0;
 
 //Three queues. One to Hardware, one to Serial, one to Ethernet
-QueueHandle_t xSerialQueue; //For transmiting data to the Serial task
-QueueHandle_t xEthernetQueue; //For transmitting data to the Ethernet task
-QueueHandle_t xHardwareQueue; //For transmitting data to the hardware task
+QueueHandle_t xSerialQueue = 0; //For transmiting data to the Serial task
+QueueHandle_t xEthernetQueue = 0; //For transmitting data to the Ethernet task
+QueueHandle_t xHardwareQueue = 0; //For transmitting data to the hardware task
 
 /*
    The queues all have a length of 5 items and a width of 32 bytes
@@ -31,79 +31,123 @@ typedef struct
   int data;
 } message;
 
-/*
- * Ethernet stuff
- */
-byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-IPAddress local(192,168,1,77);
-IPAddress server(192,168,1,10);
-EthernetClient client; 
-
+ /*
+  * Ethernet stuff
+  */
+   byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+   IPAddress local(192,168,1,77);
+   IPAddress server(192,168,1,2);
+   unsigned int local_port = 9999;
+   unsigned int server_port = 9999;
+   //EthernetClient client;
+   //EthernetUDP Udp;
+   
 void setup() {
   Serial.begin(19200);
   Serial.setTimeout(45); //timeout is 45 ms (3 ticks)
 
-  Ethernet.init(10); //used for spi interface
-  Ethernet.begin(mac, local);
 
+  Serial.println("Setup");
+  //first queues are made
+  xSerialQueue = xQueueCreate(queueLength, sizeof(message));
+  xEthernetQueue = xQueueCreate(queueLength, sizeof(message));
+  xHardwareQueue = xQueueCreate(queueLength, sizeof(message));
+  
+  if(xSerialQueue == NULL)
+  {
+    Serial.println(F("Serial Queue Fail"));
+  }
+  if(xHardwareQueue == NULL)
+  {
+    Serial.println(F("Hardware Queue Fail"));
+  }
+  if(xEthernetQueue == NULL)
+  {
+    Serial.println(F("Ethernet Queue Fail"));
+  }
+  Serial.println("queues");
+
+/*
+  Ethernet.init(10); //used for spi interface
+  Ethernet.begin(mac,local);
+*/
+/*
   if(Ethernet.hardwareStatus() == EthernetNoHardware)
   {
     Serial.println(F("No Eth Shield"));
   }
   else
   {
-    if(client.connect(server, 9999))
+    
+    if(client->connect(server, 9999))
     {
       Serial.println(F("Eth Connected"));
+      client->println("Hello");
+      client->stop();
     }
     else
     {
       Serial.println(F("Eth Failed"));
     }
+    
   }
-
-  //first queues are made
-  xSerialQueue = xQueueCreate(queueLength, sizeof(message));
-  xEthernetQueue = xQueueCreate(queueLength, sizeof(message));
-  xHardwareQueue = xQueueCreate(queueLength, sizeof(message));
-  Serial.println("Setup");
-  if(xSerialQueue == NULL)
-  {
-    Serial.println(F("Serial Queue Fail"));
-  }
-  if(xEthernetQueue == NULL)
-  {
-    Serial.println(F("Ethernet Queue Fail"));
-  }
-  if(xHardwareQueue == NULL)
-  {
-    Serial.println(F("Hardware Queue Fail"));
-  }
+  */
 
 
 
+  BaseType_t serial_succ = xTaskCreate(TaskSerial,
+                          (const portCHAR*) "Serial",
+                          171,
+                          NULL,
+                          3,
+                          &serialHandle);
+if(serial_succ == pdPASS)
+{
+  Serial.println("Serial made");
+}
+else
+{
+  Serial.println("Serial fail");
+}
 
-  xTaskCreate(TaskSerial,
-              (const portCHAR*) "Serial",
-              200,
-              NULL,
-              2,
-              &serialHandle);
-
-  xTaskCreate(TaskEthernet,
-              (const portCHAR*) "Ethernet",
-              200,
-              NULL,
-              2,
-              &ethernetHandle);
-
-  xTaskCreate(TaskHardware,
+  BaseType_t hardware_succ = xTaskCreate(TaskHardware,
               (const portCHAR*) "Hardware",
-              200,
+              96,
               NULL,
               1,
               &hardwareHandle);
+if(hardware_succ == pdPASS)
+{
+  Serial.println("Hardware made");
+}
+else
+{
+  Serial.println("Hardware fail");
+}
 
+
+  BaseType_t eth_succ = xTaskCreate(TaskEthernet,
+              (const portCHAR*) "Eth",
+              100,
+              NULL,
+              1,
+              &ethernetHandle);
+if(eth_succ == pdPASS)
+{
+  Serial.println("Eth made");
+}
+else
+{
+  Serial.println("Eth fail");
+}
+
+
+Serial.print((int) serialHandle, HEX);
+  Serial.print('\n');
+  Serial.print((int) hardwareHandle, HEX);
+  Serial.print('\n');
+  Serial.print((int) ethernetHandle, HEX);
+  Serial.print('\n');
 
 }
 
@@ -114,6 +158,8 @@ void loop() {
 
 void TaskEthernet(void* pvParameters)
 {
+  Serial.println("Eth Task Start");
+  int num = 0;
 
   /*
    * This task listens on the Ethernet port
@@ -127,14 +173,25 @@ void TaskEthernet(void* pvParameters)
 
   for(;;)
   {
-    
+    Serial.print("Eth Running ");
+    Serial.println(num);
+    num++;
+    //client->println("Hello2");
+    vTaskDelay(100);
   }
 }
 
 
 void TaskSerial( void* pvParameters)
 {
-  int max_stack = 0;
+  Serial.println("Serial Task Start");
+  unsigned int max_stack = -1;
+  Serial.print((int) serialHandle, HEX);
+  Serial.print('\n');
+  Serial.print((int) ethernetHandle, HEX);
+  Serial.print('\n');
+  Serial.print((int) hardwareHandle, HEX);
+  Serial.print('\n');
 
   /*
      This task listens on the serial port and serial queue.
@@ -325,20 +382,25 @@ void TaskSerial( void* pvParameters)
       Serial.println(SerialMessage.data);
     }
 
+
+    
     int temp = uxTaskGetStackHighWaterMark(NULL);
-    if (temp > max_stack)
+    if (temp < max_stack)
     {
       max_stack = temp;
-      Serial.println("Highwater"+max_stack);
+      Serial.print("Serial Highwater ");
+      Serial.println(max_stack);
     }
 
+    vTaskDelay(10);
   }
 
 }
 
 void TaskHardware(void* pvParameters)
 {
-  Serial.println("Hello");
+  Serial.println("Hardware Task Start");
+  unsigned int max_stack = -1;
   /*
      This task reads pins and sets outputs.
      It also reads from the Hardware queue to apply software inputs
@@ -443,6 +505,15 @@ void TaskHardware(void* pvParameters)
 
       }
     }
+
+    int temp = uxTaskGetStackHighWaterMark(NULL);
+    if (temp < max_stack)
+    {
+      max_stack = temp;
+      Serial.print("Hardware Highwater ");
+      Serial.println(max_stack);
+    }
+
     vTaskDelay( 1 );
   }
 }
