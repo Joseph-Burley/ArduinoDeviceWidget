@@ -34,14 +34,14 @@ typedef struct
  /*
   * Ethernet stuff
   */
-   byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-   IPAddress local(192,168,1,77);
-   IPAddress server(192,168,1,2);
-   unsigned int local_port = 9999;
-   unsigned int server_port = 9999;
+   //byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+   //IPAddress local(192,168,1,77);
+   //IPAddress server(192,168,1,2);
+   //unsigned int local_port = 9999;
+   //unsigned int server_port = 9999;
    //EthernetClient client;
-   //EthernetUDP Udp;
-   
+   //volatile EthernetUDP Udp;
+
 void setup() {
   Serial.begin(19200);
   Serial.setTimeout(45); //timeout is 45 ms (3 ticks)
@@ -52,7 +52,7 @@ void setup() {
   xSerialQueue = xQueueCreate(queueLength, sizeof(message));
   xEthernetQueue = xQueueCreate(queueLength, sizeof(message));
   xHardwareQueue = xQueueCreate(queueLength, sizeof(message));
-  
+
   if(xSerialQueue == NULL)
   {
     Serial.println(F("Serial Queue Fail"));
@@ -67,10 +67,10 @@ void setup() {
   }
   Serial.println("queues");
 
-/*
-  Ethernet.init(10); //used for spi interface
-  Ethernet.begin(mac,local);
-*/
+
+  //Ethernet.init(10); //used for spi interface
+  //Ethernet.begin(mac,local);
+
 /*
   if(Ethernet.hardwareStatus() == EthernetNoHardware)
   {
@@ -78,7 +78,7 @@ void setup() {
   }
   else
   {
-    
+
     if(client->connect(server, 9999))
     {
       Serial.println(F("Eth Connected"));
@@ -89,7 +89,7 @@ void setup() {
     {
       Serial.println(F("Eth Failed"));
     }
-    
+
   }
   */
 
@@ -383,7 +383,7 @@ void TaskSerial( void* pvParameters)
     }
 
 
-    
+
     int temp = uxTaskGetStackHighWaterMark(NULL);
     if (temp < max_stack)
     {
