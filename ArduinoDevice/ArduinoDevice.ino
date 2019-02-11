@@ -34,12 +34,12 @@ typedef struct
  /*
   * Ethernet stuff
   */
-   //byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+   byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
    //IPAddress local(192,168,1,77);
-   //IPAddress server(192,168,1,2);
+   IPAddress server(10,80,24,221);
    //unsigned int local_port = 9999;
-   //unsigned int server_port = 9999;
-   //EthernetClient client;
+   unsigned int server_port = 9999;
+   EthernetClient client;
    //volatile EthernetUDP Udp;
 
 void setup() {
@@ -47,7 +47,7 @@ void setup() {
   Serial.setTimeout(45); //timeout is 45 ms (3 ticks)
 
 
-  Serial.println("Setup");
+  Serial.println(F("Setup"));
   //first queues are made
   xSerialQueue = xQueueCreate(queueLength, sizeof(message));
   xEthernetQueue = xQueueCreate(queueLength, sizeof(message));
@@ -65,13 +65,13 @@ void setup() {
   {
     Serial.println(F("Ethernet Queue Fail"));
   }
-  Serial.println("queues");
+  Serial.println(F("queues"));
 
 
-  //Ethernet.init(10); //used for spi interface
-  //Ethernet.begin(mac,local);
+  Ethernet.init(10); //used for spi interface
+  Ethernet.begin(mac);
 
-/*
+  
   if(Ethernet.hardwareStatus() == EthernetNoHardware)
   {
     Serial.println(F("No Eth Shield"));
@@ -79,11 +79,11 @@ void setup() {
   else
   {
 
-    if(client->connect(server, 9999))
+    if(client.connect(server, 9999))
     {
       Serial.println(F("Eth Connected"));
-      client->println("Hello");
-      client->stop();
+      client.println("Hello");
+      //client.stop();
     }
     else
     {
@@ -91,54 +91,55 @@ void setup() {
     }
 
   }
-  */
+  
+  
 
 
-
+/*
   BaseType_t serial_succ = xTaskCreate(TaskSerial,
                           (const portCHAR*) "Serial",
-                          171,
+                          210,
                           NULL,
                           3,
                           &serialHandle);
 if(serial_succ == pdPASS)
 {
-  Serial.println("Serial made");
+  Serial.println(F("Serial made"));
 }
 else
 {
-  Serial.println("Serial fail");
+  Serial.println(F("Serial fail"));
 }
-
+*/
   BaseType_t hardware_succ = xTaskCreate(TaskHardware,
               (const portCHAR*) "Hardware",
-              96,
+              110,
               NULL,
               1,
               &hardwareHandle);
 if(hardware_succ == pdPASS)
 {
-  Serial.println("Hardware made");
+  Serial.println(F("Hardware made"));
 }
 else
 {
-  Serial.println("Hardware fail");
+  Serial.println(F("Hardware fail"));
 }
 
 
   BaseType_t eth_succ = xTaskCreate(TaskEthernet,
               (const portCHAR*) "Eth",
-              100,
+              200,
               NULL,
               1,
               &ethernetHandle);
 if(eth_succ == pdPASS)
 {
-  Serial.println("Eth made");
+  Serial.println(F("Eth made"));
 }
 else
 {
-  Serial.println("Eth fail");
+  Serial.println(F("Eth fail"));
 }
 
 
@@ -158,8 +159,9 @@ void loop() {
 
 void TaskEthernet(void* pvParameters)
 {
-  Serial.println("Eth Task Start");
+  Serial.println(F("Eth Task Start"));
   int num = 0;
+  unsigned int max_stack = -1;
 
   /*
    * This task listens on the Ethernet port
@@ -170,13 +172,27 @@ void TaskEthernet(void* pvParameters)
   EthMessage.data = 0;
 
   char buff [] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  char hellomessage [] = "Hello Again ";
+  char newline [] = "\r\n";
 
   for(;;)
   {
-    Serial.print("Eth Running ");
+    Serial.print(F("Eth Running"));
     Serial.println(num);
     num++;
-    //client->println("Hello2");
+    
+    client.print(hellomessage);
+    client.print(num);
+    client.print(newline);
+    
+
+    int temp = uxTaskGetStackHighWaterMark(NULL);
+    if (temp < max_stack)
+    {
+      max_stack = temp;
+      Serial.print(F("Eth Highwater "));
+      Serial.println(max_stack);
+    }
     vTaskDelay(100);
   }
 }
@@ -184,14 +200,9 @@ void TaskEthernet(void* pvParameters)
 
 void TaskSerial( void* pvParameters)
 {
-  Serial.println("Serial Task Start");
+  Serial.println(F("Serial Task Start"));
   unsigned int max_stack = -1;
-  Serial.print((int) serialHandle, HEX);
-  Serial.print('\n');
-  Serial.print((int) ethernetHandle, HEX);
-  Serial.print('\n');
-  Serial.print((int) hardwareHandle, HEX);
-  Serial.print('\n');
+  //int serialTemp = 0;
 
   /*
      This task listens on the serial port and serial queue.
@@ -358,7 +369,7 @@ void TaskSerial( void* pvParameters)
         bool succ = xQueueSend(xHardwareQueue, &SerialMessage, 0);
         if (!succ)
         {
-          Serial.println("queue full");
+          Serial.println(F("queue full"));
         }
 
         SerialMessage.opcode = 0;
@@ -366,7 +377,7 @@ void TaskSerial( void* pvParameters)
       }
       else
       {
-        Serial.print("err_no: ");
+        Serial.print(F("err_no: "));
         Serial.print(err_no, HEX);
         Serial.print('\n');
       }
@@ -375,7 +386,7 @@ void TaskSerial( void* pvParameters)
 
     if (xQueueReceive(xSerialQueue, &SerialMessage, 1) == pdPASS)
     {
-      Serial.println("Received message");
+      Serial.println(F("Received message"));
       Serial.println(SerialMessage.source);
       Serial.print(SerialMessage.opcode, BIN);
       Serial.print('\n');
@@ -388,7 +399,7 @@ void TaskSerial( void* pvParameters)
     if (temp < max_stack)
     {
       max_stack = temp;
-      Serial.print("Serial Highwater ");
+      Serial.print(F("Serial Highwater "));
       Serial.println(max_stack);
     }
 
@@ -399,8 +410,9 @@ void TaskSerial( void* pvParameters)
 
 void TaskHardware(void* pvParameters)
 {
-  Serial.println("Hardware Task Start");
+  Serial.println(F("Hardware Task Start"));
   unsigned int max_stack = -1;
+  //int hardwareTemp = 0;
   /*
      This task reads pins and sets outputs.
      It also reads from the Hardware queue to apply software inputs
@@ -436,6 +448,7 @@ void TaskHardware(void* pvParameters)
   {
     //for now only reads from queue
     //by default 1 tick is 15ms
+    //Serial.println("Here I Am");
     if (xQueueReceive(xHardwareQueue, &HardwareMessage, 1) != pdPASS)
     {
       //normally here is where I would check for button inputs
@@ -451,7 +464,7 @@ void TaskHardware(void* pvParameters)
          If 1, is applying input
          If 0, is reading current output
       */
-      Serial.println("\n\nmessage received");
+      Serial.println(F("\n\nmessage received"));
       Serial.print(HardwareMessage.opcode, BIN);
       Serial.println();
       Serial.print(HardwareMessage.data, BIN);
@@ -460,11 +473,11 @@ void TaskHardware(void* pvParameters)
       unsigned int rw = HardwareMessage.opcode & (1 << 7); //MSB of opcode is for r/w select
       unsigned int num = HardwareMessage.opcode & ~(1 << 7); //grab the 7 LSB of opcode
 
-      Serial.println("\n\nInternals");
-      Serial.print("rw: ");
+      Serial.println(F("\n\nInternals"));
+      Serial.print(F("rw: "));
       Serial.print(rw, BIN);
       Serial.println();
-      Serial.print("num: ");
+      Serial.print(F("num: "));
       Serial.print(num, BIN);
       Serial.println();
 
@@ -481,7 +494,7 @@ void TaskHardware(void* pvParameters)
       }
       else
       {
-        Serial.println("wat");
+        Serial.println(F("wat"));
       }
 
       HardwareMessage.source = 0;
@@ -510,8 +523,8 @@ void TaskHardware(void* pvParameters)
     if (temp < max_stack)
     {
       max_stack = temp;
-      Serial.print("Hardware Highwater ");
-      Serial.println(max_stack);
+      Serial.println("Hardware Highwater " + max_stack);
+      //Serial.println(max_stack);
     }
 
     vTaskDelay( 1 );

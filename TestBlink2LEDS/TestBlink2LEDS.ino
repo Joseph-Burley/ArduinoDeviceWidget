@@ -17,7 +17,7 @@ const blinkParams bP3 = {5, 500};
 void setup() {
   
   // initialize serial communication at 9600 bits per second:
-  Serial.begin(9600);
+  Serial.begin(19200);
   
   Serial.println("Serial Established");
   // Now set up two tasks to run independently.

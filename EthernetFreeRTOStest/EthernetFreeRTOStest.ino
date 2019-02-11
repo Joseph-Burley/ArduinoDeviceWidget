@@ -9,12 +9,12 @@ TaskHandle_t ethernetHandle = 0;
     Ethernet stuff
 */
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-IPAddress local(192, 168, 1, 77);
-IPAddress server(192, 168, 1, 2);
+IPAddress local(10, 80, 24, 222);
+IPAddress server(10, 80, 24, 221);
 unsigned int local_port = 9999; //udp only
 unsigned int server_port = 9999;
 
-PROGMEM const EthernetClient client;
+EthernetClient client;
 
 void setup() {
   // put your setup code here, to run once:
@@ -24,8 +24,15 @@ void setup() {
   Serial.print("Size of client: ");
   Serial.println(sizeof(client));
 
-  Ethernet.init(10); //used for spi interface
-  Ethernet.begin(mac, local);
+  //Ethernet.init(10); //used for spi interface
+  if(Ethernet.begin(mac))
+  {
+    Serial.println("DHCP success");
+  }
+  else
+  {
+    Serial.println("DHCP fail");
+  }
 
 
   if (Ethernet.hardwareStatus() == EthernetNoHardware)
